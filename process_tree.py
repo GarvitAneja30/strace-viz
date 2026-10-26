@@ -29,7 +29,7 @@ def _cmd_from_execve(args):
         q = QUOTED_RE.search(args)
         return q.group(1) if q else None
     cmd = " ".join(parts)
-    return cmd if len(cmd) <= 40 else cmd[:39] + "…"
+    return cmd if len(cmd) <= 70 else cmd[:69] + "…"
 
 
 def build_tree(structure_events, stat_events):

@@ -11,6 +11,7 @@ CATEGORY_KEYS = {
     "other": "Other",
     "process": "Process/wait",
     "sync": "Sync",
+    "locking": "Locking",
 }
 
 

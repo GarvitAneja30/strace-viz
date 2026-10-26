@@ -7,6 +7,8 @@ METADATA = {
     "access", "faccessat", "faccessat2",
 }
 
+LOCKING = {"flock"}
+
 OPEN_CLOSE = {"open", "openat", "openat2", "creat", "close"}
 
 MEM_EXEC = {"mmap", "munmap", "mprotect", "brk", "execve"}
@@ -15,7 +17,7 @@ PROCESS = {"clone", "clone3", "fork", "vfork", "wait4", "waitid", "exit", "exit_
 
 SYNC = {"fsync", "fdatasync", "sync", "syncfs", "sync_file_range", "msync"}
 
-ORDER = ["Data I/O", "Metadata", "Open/close", "Memory/exec", "Sync", "Process/wait", "Other"]
+ORDER = ["Data I/O", "Metadata", "Open/close", "Memory/exec", "Sync", "Locking", "Process/wait", "Other"]
 
 def categorize(name):
     if name in DATA_IO:
@@ -30,4 +32,6 @@ def categorize(name):
         return "Process/wait"
     if name in SYNC:
         return "Sync"
+    if name in LOCKING:
+        return "Locking"
     return "Other"
