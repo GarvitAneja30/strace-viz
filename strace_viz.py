@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 from collections import defaultdict
+import statistics
 
 
 from categories import categorize, ORDER
@@ -87,6 +88,21 @@ def print_files(files, top, slow_ms):
         print(f"{p:<46}{f.opens:>6}{f.reads:>6}{f.writes:>7}{f.bytes_read:>9}"
               f"{f.bytes_written:>9}{ms_s}{err_s}")
 
+def median_timings(runs):
+    """runs: list of event lists, one per run. Returns {syscall: median total seconds}."""
+    per_run = []
+    for events in runs:
+        totals = defaultdict(float)
+        for e in events:
+            totals[e.name] += e.duration
+        per_run.append(totals)
+    names = set().union(*per_run)
+    return {n: statistics.median(r.get(n, 0.0) for r in per_run) for n in names}
+
+def median_file_times(runs):
+    per_run = [{p: fa.total_time for p, fa in build_file_activity(r).items()} for r in runs]
+    paths = set().union(*per_run)
+    return {p: statistics.median(d.get(p, 0.0) for d in per_run) for p in paths}
 
 def main():
     p = argparse.ArgumentParser(prog="strace_viz")
@@ -105,6 +121,7 @@ def main():
     r.add_argument("--no-color", action="store_true", help="disable colored output")
     r.add_argument("--slow-ms", type=float, default=0.1, help="file time (ms) that turns yellow")
     r.add_argument("--tree", action="store_true", help="show the process tree (traces clone/exec too)")
+    r.add_argument("--repeat", type=int, default=1, help="run N times, report median timings")
     args = p.parse_args()
     setup_colors(args.no_color)
 
@@ -112,21 +129,45 @@ def main():
     if not cmd:
         p.error("no command given. Usage: strace_viz.py run [options] -- <command> [args...]")
 
-    path, code = collect(cmd, args.show_output, args.tree)
-    with open(path, errors="replace") as f:
-        events = list(parse_trace(f))
-
-    total = len(events)
-    all_events = events
-    events = apply_filters(events, pids=args.pid, syscalls=args.syscall, path=args.path,
-                           errors_only=args.errors_only, category=args.category,
-                           min_duration_ms=args.min_duration)
+    runs = []
+    path = code = None
+    for _ in range(max(1, args.repeat)):
+        if path:
+            os.remove(path)
+        path, code = collect(cmd, args.show_output, args.tree)
+        with open(path, errors="replace") as f:
+            runs.append(list(parse_trace(f)))
+    events = runs[0]
+    total = len(runs[0])
+    all_events = runs[0]
+    filt = dict(pids=args.pid, syscalls=args.syscall, path=args.path,
+                errors_only=args.errors_only, category=args.category,
+                min_duration_ms=args.min_duration)
+    filtered_runs = [apply_filters(r, **filt) for r in runs]
+    events = filtered_runs[0]
 
     print(f"Command: {' '.join(cmd)}  (exit code {code})")
     print(f"Parsed {total} syscalls, showing {len(events)}\n")
-    print_summary(summarize(events))
-    print_categories(category_summary(events))
-    print_files(build_file_activity(events), args.top, args.slow_ms)
+
+    stats = summarize(events)
+    cats = category_summary(events)
+    files = build_file_activity(events)
+    if args.repeat > 1:
+        med = median_timings(filtered_runs)
+        for name, s in stats.items():
+            s[1] = med.get(name, s[1])
+        for c in cats.values():
+            c[1] = 0.0
+        for name, secs in med.items():
+            cats[categorize(name)][1] += secs
+        fmed = median_file_times(filtered_runs)
+        for p, fa in files.items():
+            fa.total_time = fmed.get(p, fa.total_time)
+        print(f"(timings are the median of {args.repeat} runs; counts and bytes are from run 1)")
+
+    print_summary(stats)
+    print_categories(cats)
+    print_files(files, args.top, args.slow_ms)
     if args.tree:
         print_tree(build_tree(all_events, events))
 
