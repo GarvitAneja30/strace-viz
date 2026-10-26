@@ -10,6 +10,7 @@ CATEGORY_KEYS = {
     "memexec": "Memory/exec",
     "other": "Other",
     "process": "Process/wait",
+    "sync": "Sync",
 }
 
 

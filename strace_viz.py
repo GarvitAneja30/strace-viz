@@ -78,15 +78,15 @@ def print_categories(cats):
 def print_files(files, top, slow_ms):
     rows = sorted(files.values(), key=lambda f: -f.total_time)[:top]
     print(f"\nTop {len(rows)} files by time")
-    print(paint(f"{'path':<46}{'opens':>6}{'reads':>6}{'writes':>7}{'B read':>9}{'B writ':>9}{'ms':>8}{'err':>5}", BOLD))
-    print("-" * 96)
+    print(paint(f"{'path':<46}{'opens':>6}{'reads':>6}{'writes':>7}{'B read':>10}{'B written':>11}{'ms':>8}{'err':>5}", BOLD))
+    print("-" * 99)
     for f in rows:
         p = f.path if len(f.path) <= 45 else "…" + f.path[-44:]
         ms = f.total_time * 1000
         ms_s = paint(f"{ms:>8.3f}", YELLOW if ms >= slow_ms else None)
         err_s = paint(f"{f.errors:>5}", RED if f.errors else DIM)
-        print(f"{p:<46}{f.opens:>6}{f.reads:>6}{f.writes:>7}{f.bytes_read:>9}"
-              f"{f.bytes_written:>9}{ms_s}{err_s}")
+        print(f"{p:<46}{f.opens:>6}{f.reads:>6}{f.writes:>7}{f.bytes_read:>10}"
+              f"{f.bytes_written:>11}{ms_s}{err_s}")
 
 def median_timings(runs):
     """runs: list of event lists, one per run. Returns {syscall: median total seconds}."""
